@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "Running Vendekagon Labs Datalog Query Service"
+# archived JAVA_OPTS if needed to be wired in later.
+# if [ "$JAVA_OPTS"  == "" ]; then
+#     JAVA_OPTS='-XX:+UseG1GC -XX:MaxGCPauseMillis=50'
+# fi
+clj -X com.vendekagonlabs.datomic-query-service.service/start :host '"0.0.0.0"' :port '"80"'
+

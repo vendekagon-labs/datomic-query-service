@@ -1,0 +1,36 @@
+{:paths ["src" "resources"]
+ :deps  {org.clojure/clojure          {:mvn/version "1.11.1"}
+         org.parkerici/datalog-json-parser
+         {:git/url "https://github.com/CANDELBio/datalog-json-parser.git"
+          :git/sha "a2c2060834aca62db02b11a848a520135e1877ba"}
+         ;; -- uncomment for datomic on dynamobdb --
+         ;; com.amazonaws/aws-java-sdk-dynamodb {:mvn/version "1.12.562"}
+         software.amazon.awssdk/s3    {:mvn/version "2.20.160"}
+         org.postgresql/postgresql {:mvn/version "42.7.1"}
+         io.pedestal/pedestal.service {:mvn/version "0.6.1"}
+         org.slf4j/slf4j-simple       {:mvn/version "1.7.30"}
+         io.pedestal/pedestal.route   {:mvn/version "0.6.1"}
+         io.pedestal/pedestal.jetty   {:mvn/version "0.6.1"}
+         com.vendekagonlabs/value-hash
+         {:git/url "https://github.com/vendekagon-labs/value-hash.git"
+          :sha     "2c4cca299439c4b8239247bb36e105ddb6d801a8"}
+         com.datomic/peer             {:mvn/version "1.0.6735"
+                                       :exclusions
+                                       [org.slf4j/jul-to-slf4j
+                                        org.slf4j/slf4j-nop
+                                        org.apache.activemq/artemis-core-client]}
+         ;; old peer dep on artemis breaks netty in weird ways
+         ;; so we override it here
+         org.apache.activemq/artemis-core-client {:mvn/version "2.31.0"}
+         org.clojure/data.json        {:mvn/version "2.4.0"}}
+ :aliases
+ {:container {:mvn/local-repo "m2"}
+  :test
+  {:extra-paths ["test"]
+   :extra-deps
+   {software.amazon.awssdk/sso {:mvn/version "2.20.160"}
+    http-kit/http-kit {:mvn/version "2.7.0"}
+    com.cognitect/test-runner
+    {:git/url "https://github.com/cognitect-labs/test-runner.git"
+     :sha     "028a6d41ac9ac5d5c405dfc38e4da6b4cc1255d5"}}}}}
+

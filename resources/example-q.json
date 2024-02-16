@@ -1,0 +1,12 @@
+{
+  "query" : {
+    ":find" : ["?subject-id", "?sample-id", ["count", "?m"]],
+    ":in" : ["$"],
+    ":where" : [
+      ["?p", ":subject/id", "?subject-id"],
+      ["?s", ":sample/subject", "?p"],
+      ["?s", ":sample/id", "?sample-id"],
+      ["?m", ":measurement/sample", "?s"]
+    ]
+  }
+}

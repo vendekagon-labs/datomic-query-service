@@ -1,0 +1,3 @@
+#!/bin/bash
+docker build -t datomic-query-service .
+docker run -p 8988:80 -t datomic-query-service

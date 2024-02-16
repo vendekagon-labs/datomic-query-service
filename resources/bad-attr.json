@@ -1,0 +1,9 @@
+{
+  "query" : {
+    ":find" : ["?medicine-id"],
+    ":in" : ["$"],
+    ":where" : [
+      ["?m", ":medicine/id", "?medicine-id"]
+    ]
+  }
+}

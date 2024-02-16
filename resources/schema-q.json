@@ -1,0 +1,10 @@
+{
+  "query" : {
+    ":find" : [["?attr-name", "..."]],
+    ":in" : ["$"],
+    ":where" : [
+      ["_", ":db.install/attribute", "?a"],
+      ["?a", ":db/ident", "?attr-name"]
+    ]
+  }
+}

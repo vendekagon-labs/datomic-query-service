@@ -1,0 +1,9 @@
+#!/bin/bash
+echo "Running datalog Vendekagon Labs CANDEL Peer Server"
+
+# archived JAVA_OPTS if needed to be wired in later.
+# if [ "$JAVA_OPTS"  == "" ]; then
+#     JAVA_OPTS='-XX:+UseG1GC -XX:MaxGCPauseMillis=50'
+# fi
+BEARER_TOKEN="dev" clj -X com.vendekagonlabs.datomic-query-service.service/start :host '"localhost"' :port '"8080"'
+

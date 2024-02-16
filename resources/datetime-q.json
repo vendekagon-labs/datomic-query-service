@@ -1,0 +1,9 @@
+{
+  "query" : {
+    ":find" : ["?tx-time"],
+    ":where" : [
+      ["_", ":sample/id", "_","?tx"],
+      ["?tx", ":db/txInstant", "?tx-time"]
+    ]
+  }
+}

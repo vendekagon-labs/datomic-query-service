@@ -1,0 +1,13 @@
+{
+  "query" : {
+    ":find" : ["?subject-id", "?sample-id"],
+    ":in" : ["$", "?subject-id"],
+    ":where" : [
+      ["?p", ":subject/id", "?subject-id"],
+      ["?s", ":sample/subject", "?p"],
+      ["?s", ":sample/id", "?sample-id"]
+    ]
+  },
+  "args" : ["jlf-100-043"],
+  "basis_t": 232
+}
