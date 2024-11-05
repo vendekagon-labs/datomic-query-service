@@ -1,5 +1,6 @@
 (ns com.vendekagonlabs.datomic-query-service.db.query
-  (:require [datomic.api :as d]
+  (:require [clojure.string :as str]
+            [datomic.api :as d]
             [clojure.java.io :as io]
             [io.pedestal.interceptor :as i]
             [org.parkerici.datomic.datalog.json-parser :as datalog-parser]
@@ -27,10 +28,39 @@
                             :query datalog-parser/parse-q)]
     (assoc-in ctx [:request :body] parsed-body)))
 
+(defn keywordify [s]
+  (when (str/starts-with? s ":")
+    ;; we don't read-string b/c it can execute code
+    ;; which is real bad in request parsing :)
+    (keyword (subs s 1))))
+
+(defn maybe-keywordify
+  [elem]
+  (if-not (string? elem)
+    elem
+    (if-let [kw (keywordify elem)]
+      kw
+      elem)))
+
+(defn parse-datoms-request-body
+  [body]
+  (some-> body
+          (io/reader)
+          (slurp)
+          (json/read-str :key-fn keyword)
+          (update :index keywordify)
+          (update :components #(mapv maybe-keywordify %))))
+
 (def parse-query
   (i/interceptor
     {:name  ::parse-query
      :enter parse-query*}))
+
+(def parse-datoms
+  (i/interceptor
+    {:name ::parse-datoms
+     :enter (fn [ctx]
+              (update-in ctx [:request :body] parse-datoms-request-body))}))
 
 (defn rule-arg-index
   "Returns the position of the rules arg, %, if any, in the query.

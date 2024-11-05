@@ -7,7 +7,7 @@
             [com.vendekagonlabs.datomic-query-service.db :refer [attach-db]]
             [com.vendekagonlabs.datomic-query-service.hash :refer [hash-query]]
             [com.vendekagonlabs.datomic-query-service.db.query
-             :as query :refer [parse-query]]
+             :as query :refer [parse-query parse-datoms]]
             [com.vendekagonlabs.datomic-query-service.db.query.cache
              :as cache :refer [maybe-hit-cache]]
             [com.vendekagonlabs.datomic-query-service.config :as cfg]
@@ -80,6 +80,46 @@
                   :headers {"Content-Type" "application/json"}
                   :body    (json/write-str result-map)}))))
 
+(defn datoms-request-error
+  [msg]
+  {:status 400
+   :headers {"Content-Type" "text/plain"}
+   :body msg})
+
+(defn ensure-datoms-request
+  [ctx]
+  (let [body (get-in ctx [:request :body])
+        {:keys [index components offset limit]} body]
+    (cond (or (not index)
+              (not (#{:eavt :aevt :avet :vaet} index)))
+          (assoc ctx :response (datoms-request-error
+                                 "Must supply index to datoms! One of {:eavt,:aevt :avet :vaet}"))
+          ;; or supply your own environment variable here if you want a different limit.
+          (> 10000 limit)
+          (assoc ctx :response (datoms-request-error
+                                 "Server does not support datoms chunk sizes over 10,000"))
+          :else
+          ctx)))
+
+
+
+(defn datoms*
+  [{:keys [request] :as ctx}]
+  (let [{:keys [body db]} request
+        datoms-args (assoc body :db db)
+        {:keys [error] :as result-map} (query/datoms->result-or-errors datoms-args)]
+    (if-not error
+      (assoc-in ctx [:request :datoms-result] result-map)
+      (assoc ctx :response
+                 {:status 400
+                  :headers {"Content-Type" "application/json"}
+                  :body (json/write-str result-map)}))))
+
+(def datoms
+  (i/interceptor
+    {:name ::datoms
+     :enter datoms*}))
+
 (def query
   (i/interceptor
     {:name  ::query
@@ -107,6 +147,16 @@
                               :headers {"Content-Type" "application/json"}
                               :body    (get-in ctx [:request :query-result])}))))}))
 
+(def jsonify-datoms
+  (i/interceptor
+    {:name ::jsonify-datoms
+     :enter (fn [ctx]
+              (assoc ctx :response
+                         {:status 200
+                          :headers {"Content-Type" "application/json"}
+                          :body (let [result (get-in ctx [:request :datoms-result])]
+                                  (-> result prep-json-out))}))}))
+
 (def routes
   (route/expand-routes
     #{["/query/:db-name"
@@ -116,6 +166,10 @@
               maybe-hit-cache query jsonify-q-results
               sometimes-json-response cache/write]
        :route-name :query-dbname]
+      ["/datoms/:db-name"
+       :post [bearer-auth (negotiate-content ["application/json"]
+                                             {:no-match-fn identity})
+              parse-datoms ensure-datoms-request attach-db datoms jsonify-datoms]]
       ["/health" :get health
        :route-name :health-check]}))
 
