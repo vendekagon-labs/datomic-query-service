@@ -154,13 +154,15 @@
                  :key-fn keyword)
 
   ;; TODO: promote to test
-  (POST "/datoms/kapur-clean-repo"
-        :body (slurp (io/resource "datoms-request-ex.json"))
-        :headers
-        {"Content-Type" "application/json"
-         "Accept"       "application/json"
-         "Authorization"
-         (str "Bearer " (System/getenv "BEARER_TOKEN"))})
+  (def resp
+    (POST "/datoms/kapur-clean-repo"
+          :body (slurp (io/resource "datoms-request-ex.json"))
+          :headers
+          {"Content-Type" "application/json"
+           "Accept"       "application/json"
+           "Authorization"
+           (str "Bearer " (System/getenv "BEARER_TOKEN"))}))
+  (json/read-str (:body resp))
 
   (POST test-db-route
         :body (slurp (io/resource "basis-t-q.json"))
