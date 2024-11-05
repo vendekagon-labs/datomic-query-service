@@ -150,6 +150,18 @@
   ;; basis-t query still requires some manual inspection to setup and vet
   (reset-test-server)
 
+  (json/read-str (slurp (io/resource "datoms-request-ex.json"))
+                 :key-fn keyword)
+
+  ;; TODO: promote to test
+  (POST "/datoms/kapur-clean-repo"
+        :body (slurp (io/resource "datoms-request-ex.json"))
+        :headers
+        {"Content-Type" "application/json"
+         "Accept"       "application/json"
+         "Authorization"
+         (str "Bearer " (System/getenv "BEARER_TOKEN"))})
+
   (POST test-db-route
         :body (slurp (io/resource "basis-t-q.json"))
         :headers {"Content-Type"  "application/json"

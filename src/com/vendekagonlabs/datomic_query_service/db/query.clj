@@ -1,9 +1,9 @@
 (ns com.vendekagonlabs.datomic-query-service.db.query
-  (:require [datomic.api :as d]
+  (:require [clojure.string :as str]
+            [datomic.api :as d]
             [clojure.java.io :as io]
             [io.pedestal.interceptor :as i]
             [org.parkerici.datomic.datalog.json-parser :as datalog-parser]
-            [com.vendekagonlabs.datomic-query-service.db :as db]
             [clojure.data.json :as json]))
 
 
@@ -28,10 +28,39 @@
                             :query datalog-parser/parse-q)]
     (assoc-in ctx [:request :body] parsed-body)))
 
+(defn keywordify [s]
+  (when (str/starts-with? s ":")
+    ;; we don't read-string b/c it can execute code
+    ;; which is real bad in request parsing :)
+    (keyword (subs s 1))))
+
+(defn maybe-keywordify
+  [elem]
+  (if-not (string? elem)
+    elem
+    (if-let [kw (keywordify elem)]
+      kw
+      elem)))
+
+(defn parse-datoms-request-body
+  [body]
+  (some-> body
+          (io/reader)
+          (slurp)
+          (json/read-str :key-fn keyword)
+          (update :index keywordify)
+          (update :components #(mapv maybe-keywordify %))))
+
 (def parse-query
   (i/interceptor
     {:name  ::parse-query
      :enter parse-query*}))
+
+(def parse-datoms
+  (i/interceptor
+    {:name ::parse-datoms
+     :enter (fn [ctx]
+              (update-in ctx [:request :body] parse-datoms-request-body))}))
 
 (defn rule-arg-index
   "Returns the position of the rules arg, %, if any, in the query.
@@ -46,7 +75,54 @@
     (when (seq inds)
       (first inds))))
 
+(defn ref-attr? [db attr-eid]
+  (= :db.type/ref
+     (-> (d/attribute db attr-eid)
+         (:value-type))))
+
+(defn ->ident [db eid]
+  (when-let [ident (:db/ident (d/entity db eid))]
+    ident))
+
+(defn maybe->ident [db attr-eid val]
+  (if-not (ref-attr? db attr-eid)
+    val
+    (or (->ident db val) val)))
+
+(defn hydrate-datom
+  "Given a Datomic Datom object, uses nth destructuring to pull it apart and transform
+  it into a map with :e :a :v and :tx keys, looking up idents when suitable for resolving
+  attribute names or ident enums."
+  [db [e a v tx]]
+  {:e e
+   :a (->ident db a)
+   :v (maybe->ident db a v)
+   :tx tx})
+
+(defn datoms->result-or-errors
+  [{:keys [db basis-t index components seek limit offset]}]
+  (let [offset* (or offset 0)
+        limit* (or limit 1000)
+        datoms-fn (if seek
+                    (partial d/seek-datoms db index)
+                    (partial d/datoms db index))
+        result (try
+                 (->> (apply datoms-fn components)
+                      (drop offset*)
+                      (take limit*)
+                      (mapv (partial hydrate-datom db)))
+                 (catch Exception e
+                   {:error (.getMessage e)
+                    :ex-info (ex-data e)}))]
+    (if (:error result)
+      result
+      {:result result
+       :basis-t basis-t})))
+
 (defn q->result-or-errors
+  "Returns the result of a query or -- in the case of errors --
+  a map which contains the error message and any reported ex-data
+  in the :error and :ex-info keys respectively."
   [{:keys [db basis-t query args timeout]}]
   (let [rule-index (rule-arg-index query)
         ;; note: arg parsing can throw
@@ -70,3 +146,17 @@
       q-result
       {:result  q-result
        :basis-t basis-t})))
+
+(comment
+  (require '[com.vendekagonlabs.datomic-query-service.db :as db])
+  (db/db-names)
+  (def dev-conn (db/connect-to "template-db"))
+  (def dev-db (d/db dev-conn))
+  (datoms->result-or-errors {:db dev-db
+                             :basis-t 1
+                             :index :aevt
+                             :components
+                             [:sample/subject]
+                             :seek true
+                             :limit 100
+                             :offset 100}))
