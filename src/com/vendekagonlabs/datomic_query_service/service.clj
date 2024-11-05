@@ -155,8 +155,12 @@
               (assoc ctx :response
                          {:status 200
                           :headers {"Content-Type" "application/json"}
-                          :body (let [result (get-in ctx [:request :datoms-result])]
-                                  (-> result prep-json-out))}))}))
+                          :body (let [result (get-in ctx [:request :datoms-result :result]);t])
+                                      basis-t (get-in ctx [:request :datoms-result :basis-t])
+                                      datoms-result (-> result prep-json-out)]
+                                  (json/write-str
+                                    {"datoms_chunk" datoms-result
+                                     "basis_t" basis-t}))}))}))
 
 (def routes
   (route/expand-routes
