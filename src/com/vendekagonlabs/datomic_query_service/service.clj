@@ -15,7 +15,8 @@
             [io.pedestal.http.route :as route])
   (:import java.time.ZoneId
            java.util.Date
-           java.time.format.DateTimeFormatter))
+           java.time.format.DateTimeFormatter)
+  (:gen-class))
 
 (def cors
   ;; localhost:3000 for dev, but will need to add other URLs potentially depending
@@ -175,16 +176,11 @@
 
 (defn create-server [{:keys [host port dev]}]
   (let [server-port (if port
-                      (Integer/parseInt port)
+                      (if (integer? port)
+                        port
+                        (Integer/parseInt port))
                       80)
         server-host (or host "0.0.0.0")]
-    (try
-      (cfg/bearer-token)
-      (catch Exception e
-        (do
-          (println "You must set BEARER_TOKEN in the environment
-                   in which the service is launched!")
-          (throw e))))
     (http/create-server
       {::http/join?  (not dev)
        ::http/host   server-host
@@ -195,9 +191,20 @@
        ;; ::http/request-logger
        ::http/port   server-port})))
 
-(defn start [{:keys [host port]}]
+(defn start
+  "Starts service, binding to `host` and `port` keys. Entry point
+  for REPL or clj -X launch."
+  [{:keys [host port]}]
   (http/start (create-server {:port port
                               :host host})))
+
+(defn -main
+  "Starts service, binding to `host` at first positional arg and
+  optionally to `port` at second positional arg (defaults to 80.
+  Entry point for uberjar/standalone application."
+  [host port & _args]
+  (start {:host host
+          :port port}))
 
 (comment
    (def server
